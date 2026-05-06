@@ -77,7 +77,10 @@ class BaseAgent(ABC):
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if not cls.__abstractmethods__ and not cls.name:
+        # ABCMeta sets __abstractmethods__, but on Python 3.11 the order between
+        # __init_subclass__ and ABCMeta.__new__ is fragile — use getattr to be safe.
+        abstract = getattr(cls, "__abstractmethods__", frozenset())
+        if not abstract and not cls.name:
             raise TypeError(f"{cls.__name__} must set a non-empty `name`")
 
     @abstractmethod

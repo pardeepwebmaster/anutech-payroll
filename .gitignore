@@ -39,3 +39,4 @@ Thumbs.db
 storage/
 uploads/
 payslips/
+.tmp/
