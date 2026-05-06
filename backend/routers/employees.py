@@ -6,7 +6,7 @@ import io
 from datetime import date
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import or_
@@ -178,14 +178,19 @@ def update_employee(
     return emp
 
 
-@router.delete("/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{employee_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def deactivate_employee(
     employee_id: str,
     db: Session = Depends(get_tenant_session),
     _: CurrentUser = Depends(require_admin),
-) -> None:
+) -> Response:
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
     emp.status = "inactive"
     db.flush()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
