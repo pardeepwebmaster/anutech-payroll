@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../../lib/api";
+import api, { downloadFile } from "../../lib/api";
 import DataTable from "../../components/DataTable";
 import { inr, isoDate } from "../../lib/format";
 
@@ -16,8 +16,10 @@ export default function MyPayslips() {
     {
       key: "pdf", header: "",
       render: (p) => (
-        <a className="text-primary-600 text-sm hover:underline"
-           href={`/api/v1/payroll/payslips/${p.id}/pdf`}>Download PDF</a>
+        <button className="text-primary-600 text-sm hover:underline"
+                onClick={() => downloadFile(`/payroll/payslips/${p.id}/pdf`, `payslip-${p.id}.pdf`)}>
+          Download PDF
+        </button>
       ),
     },
   ];

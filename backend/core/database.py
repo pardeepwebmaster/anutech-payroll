@@ -18,12 +18,23 @@ _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
 
 
+def _normalize_db_url(url: str) -> str:
+    """Render and other PaaS providers hand out plain postgres:// URLs.
+    SQLAlchemy 2.x dropped that scheme — coerce to postgresql+psycopg2://.
+    """
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg2://" + url[len("postgres://"):]
+    if url.startswith("postgresql://") and "+" not in url.split("://", 1)[0]:
+        return "postgresql+psycopg2://" + url[len("postgresql://"):]
+    return url
+
+
 def get_engine() -> Engine:
     global _engine
     if _engine is None:
         settings = get_settings()
         _engine = create_engine(
-            settings.DATABASE_URL,
+            _normalize_db_url(settings.DATABASE_URL),
             pool_pre_ping=True,
             pool_size=10,
             max_overflow=20,

@@ -1,9 +1,13 @@
 import axios from "axios";
 
-// Single axios instance for the whole app. Frontend teammate extends with
-// JWT interceptor + 401 redirect to /login.
+// In dev: Vite proxies /api → http://localhost:8000 (see vite.config.js).
+// In prod: VITE_API_URL points at the deployed backend (e.g. https://anutech-backend.onrender.com).
+const baseURL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/v1`
+  : "/api/v1";
+
 const api = axios.create({
-  baseURL: "/api/v1",
+  baseURL,
   timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
@@ -30,3 +34,17 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// Authenticated file download — fetches a binary blob with the JWT and
+// triggers a save-as in the browser. Use for PDFs and CSV exports.
+export async function downloadFile(path, filename) {
+  const resp = await api.get(path, { responseType: "blob" });
+  const url = URL.createObjectURL(resp.data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || path.split("/").pop() || "download";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

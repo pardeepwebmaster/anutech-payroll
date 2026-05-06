@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../../lib/api";
+import api, { downloadFile } from "../../lib/api";
 import DataTable from "../../components/DataTable";
 import { inr, isoDate } from "../../lib/format";
 
@@ -68,7 +68,10 @@ export default function Employees() {
           <p className="text-sm text-gray-500 mt-1">Manage your workforce.</p>
         </div>
         <div className="flex gap-2">
-          <a className="btn-secondary text-sm" href="/api/v1/employees/export.csv">Export CSV</a>
+          <button className="btn-secondary text-sm"
+                  onClick={() => downloadFile("/employees/export.csv", "employees.csv")}>
+            Export CSV
+          </button>
           <button className="btn-primary text-sm" onClick={() => setOpen(true)}>Add employee</button>
         </div>
       </div>
