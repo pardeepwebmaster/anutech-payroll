@@ -21,13 +21,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Install deps first for layer caching
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY . /app/
+# Copy backend source as the `backend` package so `import backend.main` resolves.
+# (Docker build context is ./backend, so `.` here = the backend folder's contents.)
+COPY . /app/backend/
 
-WORKDIR /
-ENV PYTHONPATH=/
+ENV PYTHONPATH=/app
 
 EXPOSE 8000
 
