@@ -2,6 +2,9 @@
 -- Executed inside a freshly created schema during tenant onboarding.
 -- The runner sets search_path to the tenant schema before running this.
 
+-- gen_random_uuid() is provided by pgcrypto. Master schema creates the
+-- extension; the tenant schema inherits it via search_path.
+
 CREATE TABLE IF NOT EXISTS employees (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            VARCHAR(255) NOT NULL,

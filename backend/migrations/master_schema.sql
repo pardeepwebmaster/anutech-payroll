@@ -1,6 +1,10 @@
 -- Master DB schema (lives in `public`).
 -- Idempotent: safe to run on an empty DB or alongside Alembic.
 
+-- Required for gen_random_uuid() — pre-installed on Render's Postgres but
+-- explicit creation is harmless and keeps the SQL portable.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE IF NOT EXISTS public.subscription_plans (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            VARCHAR(64) UNIQUE NOT NULL,
