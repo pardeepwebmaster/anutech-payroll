@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import Generator, Iterator
 
+from fastapi import Request
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -93,7 +94,7 @@ def master_session() -> Iterator[Session]:
         session.close()
 
 
-def get_tenant_session(request) -> Generator[Session, None, None]:  # FastAPI dependency
+def get_tenant_session(request: Request) -> Generator[Session, None, None]:  # FastAPI dependency
     """Request-scoped tenant session. Tenant slug comes from request.state.tenant_schema,
     set by tenant_middleware. Routers should depend on this — never construct sessions
     by hand inside routers.
@@ -117,7 +118,7 @@ def get_tenant_session(request) -> Generator[Session, None, None]:  # FastAPI de
         session.close()
 
 
-def get_master_session(request) -> Generator[Session, None, None]:  # FastAPI dependency
+def get_master_session(request: Request) -> Generator[Session, None, None]:  # FastAPI dependency
     """Request-scoped master session — for /auth/register and admin-only endpoints."""
     settings = get_settings()
     factory = get_session_factory()
