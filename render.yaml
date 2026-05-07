@@ -108,9 +108,16 @@ services:
         source: /*
         destination: /index.html
     headers:
+      # Allow this static site to be embedded in an <iframe> from anywhere.
+      # X-Frame-Options "ALLOWALL" is non-standard — modern browsers ignore it
+      # (which effectively allows framing); legacy browsers treat it as
+      # permissive. The real enforcement comes from CSP frame-ancestors below.
       - path: /*
         name: X-Frame-Options
-        value: DENY
+        value: ALLOWALL
+      - path: /*
+        name: Content-Security-Policy
+        value: "frame-ancestors *"
       - path: /*
         name: X-Content-Type-Options
         value: nosniff
