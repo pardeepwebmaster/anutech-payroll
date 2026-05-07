@@ -21,6 +21,9 @@ export default function Employees() {
   const [draft, setDraft] = useState(empty);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [pwTarget, setPwTarget] = useState(null);  // {id, name} of employee whose password we're setting
+  const [pwValue, setPwValue] = useState("");
+  const [pwInfo, setPwInfo] = useState(null);
 
   const load = () => api.get("/employees").then((r) => setRows(r.data));
 
@@ -42,6 +45,30 @@ export default function Employees() {
     }
   };
 
+  const setPassword = async (e) => {
+    e.preventDefault();
+    if (pwValue.length < 8) {
+      setPwInfo({ error: "Password must be at least 8 characters" });
+      return;
+    }
+    try {
+      await api.patch(`/employees/${pwTarget.id}`, { password: pwValue });
+      setPwInfo({
+        ok: true,
+        message: `Password set for ${pwTarget.name}. Share these login details with them: tenant=anutech, email=${pwTarget.email}, password=${pwValue}`,
+      });
+      setPwValue("");
+    } catch (err) {
+      setPwInfo({ error: err?.response?.data?.detail || "Failed" });
+    }
+  };
+
+  const closePwModal = () => {
+    setPwTarget(null);
+    setPwValue("");
+    setPwInfo(null);
+  };
+
   const columns = [
     { key: "name", header: "Name", render: (r) => <span className="font-medium">{r.name}</span> },
     { key: "role", header: "Role" },
@@ -56,6 +83,19 @@ export default function Employees() {
         </span>
       ),
     },
+    {
+      key: "login", header: "Login",
+      render: (r) => (
+        <button
+          className="text-primary-600 text-xs hover:underline"
+          onClick={() => setPwTarget({ id: r.id, name: r.name, email: r.email })}
+          disabled={!r.email}
+          title={!r.email ? "Add an email first" : "Set a password so this employee can log in"}
+        >
+          {r.email ? "Set password" : "No email"}
+        </button>
+      ),
+    },
   ];
 
   const update = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
@@ -65,7 +105,7 @@ export default function Employees() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Employees</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your workforce.</p>
+          <p className="text-sm text-gray-500 mt-1">Manage your workforce. Use "Set password" to give an employee login access to apply leave / view payslips.</p>
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary text-sm"
@@ -106,6 +146,53 @@ export default function Employees() {
                 {busy ? "Saving..." : "Save"}
               </button>
             </div>
+          </form>
+        </div>
+      )}
+
+      {pwTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-10 p-4" onClick={closePwModal}>
+          <form
+            className="card w-full max-w-md space-y-3"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={setPassword}
+          >
+            <h2 className="text-lg font-semibold">Set login password</h2>
+            <p className="text-sm text-gray-600">
+              Set a password for <strong>{pwTarget.name}</strong> ({pwTarget.email}).
+              They can then log in to apply leave and download payslips.
+            </p>
+
+            {pwInfo?.ok ? (
+              <>
+                <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3 break-all">
+                  {pwInfo.message}
+                </div>
+                <button type="button" className="btn-primary w-full text-sm" onClick={closePwModal}>Done</button>
+              </>
+            ) : (
+              <>
+                {pwInfo?.error && (
+                  <div className="text-sm text-red-600">{pwInfo.error}</div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium mb-1">New password (min 8 chars)</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={pwValue}
+                    onChange={(e) => setPwValue(e.target.value)}
+                    minLength={8}
+                    autoFocus
+                    placeholder="e.g. Welcome2026!"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" className="btn-secondary text-sm" onClick={closePwModal}>Cancel</button>
+                  <button type="submit" className="btn-primary text-sm">Set password</button>
+                </div>
+              </>
+            )}
           </form>
         </div>
       )}
