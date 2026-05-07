@@ -13,9 +13,17 @@ export default function RunPayroll() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
+  const [zohoStatus, setZohoStatus] = useState(null);
+  const [zohoBusyId, setZohoBusyId] = useState(null);
+  const [zohoToast, setZohoToast] = useState(null);
 
   const loadRuns = () => api.get("/payroll/runs").then((r) => setRuns(r.data));
-  useEffect(() => { loadRuns(); }, []);
+  const loadZoho = () =>
+    api.get("/payroll/zoho-status")
+      .then((r) => setZohoStatus(r.data))
+      .catch(() => setZohoStatus({ configured: false }));
+
+  useEffect(() => { loadRuns(); loadZoho(); }, []);
 
   const run = async () => {
     setBusy(true); setError(null); setInfo(null);
@@ -36,6 +44,27 @@ export default function RunPayroll() {
     setPayslips(data);
   };
 
+  const syncZoho = async (r) => {
+    setZohoBusyId(r.id); setZohoToast(null);
+    try {
+      const { data } = await api.post(`/payroll/runs/${r.id}/sync-zoho`);
+      setZohoToast({
+        ok: true,
+        message: `Synced to Zoho ✓ Expense ID: ${data.expense_id} (₹${data.amount} for ${data.date})`,
+      });
+    } catch (err) {
+      setZohoToast({
+        ok: false,
+        message: err?.response?.data?.detail || "Zoho sync failed",
+      });
+    } finally {
+      setZohoBusyId(null);
+    }
+  };
+
+  const zohoConfigured = zohoStatus?.configured;
+  const zohoConnectionOk = zohoStatus?.connection?.ok;
+
   const runColumns = [
     { key: "period", header: "Period", render: (r) => `${monthName(r.month)} ${r.year}` },
     { key: "status", header: "Status" },
@@ -45,9 +74,21 @@ export default function RunPayroll() {
     {
       key: "actions", header: "",
       render: (r) => (
-        <button className="text-primary-600 text-sm hover:underline" onClick={() => view(r)}>
-          View payslips
-        </button>
+        <div className="flex gap-3">
+          <button className="text-primary-600 text-sm hover:underline" onClick={() => view(r)}>
+            View payslips
+          </button>
+          {r.status === "completed" && zohoConfigured && (
+            <button
+              className="text-primary-600 text-sm hover:underline disabled:opacity-50"
+              disabled={zohoBusyId === r.id || !zohoConnectionOk}
+              onClick={() => syncZoho(r)}
+              title={zohoConnectionOk ? "Push this run as an expense entry to Zoho Books" : "Zoho connection failing — check ZOHO_SETUP.md"}
+            >
+              {zohoBusyId === r.id ? "Syncing..." : "Sync to Zoho"}
+            </button>
+          )}
+        </div>
       ),
     },
   ];
@@ -74,7 +115,7 @@ export default function RunPayroll() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Payroll</h1>
-        <p className="text-sm text-gray-500 mt-1">Run monthly payroll and view payslips.</p>
+        <p className="text-sm text-gray-500 mt-1">Run monthly payroll, view payslips, and sync totals to Zoho Books.</p>
       </div>
 
       <div className="card">
@@ -99,6 +140,36 @@ export default function RunPayroll() {
         {info && <div className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3">{info}</div>}
         {error && <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">{error}</div>}
       </div>
+
+      <div className="card flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold">Zoho Books</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {zohoStatus === null
+              ? "Checking..."
+              : !zohoConfigured
+              ? "Not configured. See ZOHO_SETUP.md to add OAuth credentials. Sync button will appear here once connected."
+              : zohoConnectionOk
+              ? `Connected ✓ ${zohoStatus.organization_id_set ? "" : "(set ZOHO_ORGANIZATION_ID)"} ${zohoStatus.salaries_account_id_set ? "" : "— set ZOHO_SALARIES_ACCOUNT_ID"}`
+              : `Configured but connection failing: ${zohoStatus.connection?.error?.slice(0, 100) || "unknown"}`}
+          </p>
+        </div>
+        <div className="text-right">
+          <div className={`text-xs px-2 py-1 rounded-full inline-block ${
+            !zohoConfigured ? "bg-gray-100 text-gray-600" :
+            zohoConnectionOk ? "bg-green-100 text-green-800" :
+            "bg-red-100 text-red-700"
+          }`}>
+            {!zohoConfigured ? "Disabled" : zohoConnectionOk ? "Connected" : "Error"}
+          </div>
+        </div>
+      </div>
+
+      {zohoToast && (
+        <div className={`text-sm border rounded p-3 ${zohoToast.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-700 bg-red-50 border-red-200"}`}>
+          {zohoToast.message}
+        </div>
+      )}
 
       <div>
         <h2 className="text-lg font-semibold mb-3">Recent runs</h2>

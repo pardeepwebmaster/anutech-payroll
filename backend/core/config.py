@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     ZOHO_CLIENT_ID: str = ""
     ZOHO_CLIENT_SECRET: str = ""
     ZOHO_REFRESH_TOKEN: str = ""
+    ZOHO_ORGANIZATION_ID: str = ""
+    ZOHO_SALARIES_ACCOUNT_ID: str = ""
+    ZOHO_REGION: str = Field(
+        default="in",
+        description="Zoho data center: in / com / eu / com.au / jp / ca",
+    )
 
     APP_BASE_DOMAIN: str = "payroll.anutech.in"
     CORS_ORIGINS: str = Field(

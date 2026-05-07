@@ -19,6 +19,10 @@ from ..core.security import (
 from ..models.tenant_models import Employee, PayrollRun, Payslip
 from ..services.payroll_calculator import calculate_payslip
 from ..services.email_service import render_payslip_pdf
+from ..services.zoho_books import (
+    get_zoho_status as zoho_status_dict,
+    sync_payroll_run_to_zoho,
+)
 
 router = APIRouter()
 
@@ -179,6 +183,52 @@ def list_payslips_for_run(
         .order_by(Payslip.created_at)
         .all()
     )
+
+
+@router.get("/zoho-status")
+def zoho_status(
+    _: CurrentUser = Depends(require_admin),
+) -> dict:
+    """Diagnostic — verifies Zoho creds + lists organizations.
+
+    Used by the frontend to decide whether to show the \"Sync to Zoho\" button.
+    """
+    return zoho_status_dict()
+
+
+@router.post("/runs/{run_id}/sync-zoho")
+def sync_run_to_zoho(
+    run_id: str,
+    db: Session = Depends(get_tenant_session),
+    _: CurrentUser = Depends(require_admin),
+) -> dict:
+    """Push this payroll run's total net to Zoho Books as an Expense entry.
+
+    Idempotency: each call creates a new expense in Zoho. The reference_number
+    on the expense is set to the run id, so duplicates are easy to spot in
+    Zoho's expense list and clean up if needed.
+    """
+    run = db.query(PayrollRun).filter(PayrollRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Payroll run not found")
+    if run.status != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Run is in status '{run.status}'. Complete the run before syncing.",
+        )
+
+    period_iso = f"{run.year:04d}-{run.month:02d}-01"
+    result = sync_payroll_run_to_zoho(
+        run_id=str(run.id),
+        period_iso=period_iso,
+        total_net=run.total_net,
+    )
+    if not result or not result.get("ok"):
+        raise HTTPException(
+            status_code=502,
+            detail=(result or {}).get("reason", "Zoho sync failed"),
+        )
+    return result
 
 
 @router.get("/payslips/me", response_model=list[PayslipRead])
